@@ -126,8 +126,8 @@
    of the app does not change — only this adapter does.
    ============================================================ */
 const CONFIG = {
-  SUPABASE_URL: "",       // e.g. https://xxxx.supabase.co
-  SUPABASE_ANON_KEY: "",  // your project's anon public key
+  SUPABASE_URL: "https://cwdrvpvcjmgvgshofgjr.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN3ZHJ2cHZjam1ndmdzaG9mZ2pyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3NTM5NTEsImV4cCI6MjEwODMyOTk1MX0.pyrZ5cpmobjnenrJE2WcIKKSPkXkQTQB8imFkyGuRtY",
 };
 
 /* ---------- Backend adapter (same signatures for both modes) ---------- */
@@ -181,7 +181,7 @@ const Backend = (() => {
       best_time: ex && ex.best_time!=null ? Math.min(player.time??ex.best_time, ex.best_time) : (player.time??null),
       games:(ex?ex.games:0)+1, updated_at:new Date().toISOString(),
     };
-    await sb.from("players").upsert(row);
+    await sb.from("players").upsert(row, { onConflict: "family_code,id" });
     return {improved, record:{nickname:row.nickname,best:row.best_score,bestCombo:row.best_combo,
       bestTime:row.best_time,bestAcc:row.best_accuracy,games:row.games}};
   }
