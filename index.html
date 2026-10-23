@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Ravan Rush</title>
+<style>
+  /* ---- Layout: full-screen single-view game; night-of-Dussehra palette ---- */
+  :root{
+    --night-1:#1b1033; --night-2:#2a1550; --night-3:#3a1d2e;
+    --gold:#ffc24b; --gold-deep:#e89b1c; --saffron:#ff7a1a; --flame:#ff4d2e;
+    --ink:#fff3e0; --muted:#c7b6d9; --card:rgba(255,255,255,.06);
+    --line:rgba(255,200,120,.22); --good:#5ad48b; --bad:#ff6b6b;
+    --crown:#ffd76a;
+    --f-display:"Marcellus SC", Georgia, serif;
+    --f-body:"Mukta", system-ui, -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:var(--f-body); color:var(--ink);
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #5a2a6e33, transparent 60%),
+      radial-gradient(900px 500px at 10% 110%, #ff7a1a22, transparent 60%),
+      linear-gradient(160deg, var(--night-1), var(--night-2) 55%, var(--night-3));
+    background-attachment:fixed;
+    -webkit-tap-highlight-color:transparent; overflow-x:hidden;
+  }
+  .wrap{
+    min-height:100%; display:flex; flex-direction:column; align-items:center;
+    padding-block:18px;
+    padding-left:max(16px, env(safe-area-inset-left,0px));
+    padding-right:max(16px, env(safe-area-inset-right,0px));
+  }
+  .screen{width:100%; max-width:460px; margin:auto; animation:rise .35s ease both}
+  @keyframes rise{from{opacity:0; transform:translateY(10px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important}}
+
+  .brand{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:10px;text-align:center}
+  .brand .logo{font-size:44px;line-height:1}
+  h1{font-family:var(--f-display); font-weight:400; letter-spacing:.5px; margin:0; font-size:34px;
+     background:linear-gradient(180deg,#fff,#ffcf7a); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .tag{color:var(--muted); font-size:14px; margin:0}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; backdrop-filter:blur(6px)}
+  .card + .card{margin-top:12px}
+  h2{font-family:var(--f-display);font-weight:400;font-size:20px;margin:0 0 12px}
+  label{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
+        background:rgba(0,0,0,.25);color:var(--ink);font-size:16px;font-family:inherit}
+  input:focus{outline:none;border-color:var(--gold)}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+       padding:15px 18px;border:none;border-radius:14px;font-size:17px;font-weight:700;cursor:pointer;
+       font-family:var(--f-body); color:#2a1206;
+       background:linear-gradient(180deg,var(--gold),var(--gold-deep));
+       box-shadow:0 8px 24px -8px #ffb23e88; transition:transform .08s ease, filter .15s}
+  .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(1px) scale(.995)}
+  .btn.secondary{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+  .btn.flame{background:linear-gradient(180deg,var(--saffron),var(--flame));color:#fff;box-shadow:0 8px 24px -8px #ff4d2e88}
+  .btn + .btn{margin-top:10px}
+  .muted{color:var(--muted)} .center{text-align:center}
+  .row{display:flex;gap:10px} .row>*{flex:1 1 0;min-width:0}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+        background:rgba(255,194,75,.14);border:1px solid var(--line);font-size:13px;color:var(--gold)}
+  .code{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.14em;font-weight:700;color:var(--gold);font-size:20px}
+  .back{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:6px 0;margin-bottom:6px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#20143aee;border:1px solid var(--line);
+         color:var(--ink);padding:11px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none}
+  .toast.show{opacity:1}
+
+  /* ---- Arena ---- */
+  .hud{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;font-variant-numeric:tabular-nums}
+  .hud .stat{display:flex;flex-direction:column;align-items:center;gap:1px;flex:1}
+  .hud .stat b{font-size:22px;font-family:var(--f-display);font-weight:400}
+  .hud .stat span{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .combo{color:var(--saffron)}
+  .arena{position:relative;width:100%;aspect-ratio:3/4;max-height:62vh;border-radius:20px;overflow:hidden;
+          border:1px solid var(--line);
+          background:radial-gradient(120% 90% at 50% 0%, #38205f 0%, #241247 55%, #140a27 100%);
+          touch-action:manipulation;user-select:none}
+  .ground{position:absolute;left:0;right:0;bottom:0;height:22%;
+          background:linear-gradient(180deg,transparent,#2a0f0f 70%)}
+  .head{position:absolute;width:74px;height:74px;transform:translate(-50%,-50%) scale(0);
+        cursor:pointer;will-change:transform;transition:transform .12s cubic-bezier(.3,1.4,.5,1)}
+  .head.in{transform:translate(-50%,-50%) scale(1)}
+  .head svg{width:100%;height:100%;filter:drop-shadow(0 4px 8px #0008)}
+  .progress{position:absolute;left:12px;right:12px;bottom:10px;height:6px;border-radius:4px;background:#ffffff22;overflow:hidden}
+  .progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--saffron),var(--gold));transition:width .2s}
+  .countin{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-display);font-size:90px;color:var(--gold);
+            background:#140a27cc;z-index:5}
+  .float{position:absolute;transform:translate(-50%,-50%);font-weight:800;color:var(--gold);pointer-events:none;
+         font-variant-numeric:tabular-nums;text-shadow:0 2px 6px #000;animation:floatUp .7s ease-out forwards;font-size:18px}
+  @keyframes floatUp{from{opacity:1}to{opacity:0;transform:translate(-50%,-150%)}}
+  .burst{position:absolute;transform:translate(-50%,-50%);pointer-events:none;font-size:40px;animation:burst .5s ease-out forwards}
+  @keyframes burst{from{opacity:1;transform:translate(-50%,-50%) scale(.6)}to{opacity:0;transform:translate(-50%,-50%) scale(1.8)}}
+
+  /* ---- Leaderboard ---- */
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th,td{padding:10px 8px;text-align:left;font-size:14px;border-bottom:1px solid rgba(255,255,255,.07)}
+  th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  td.num,th.num{text-align:right}
+  tr.me td{background:rgba(255,194,75,.12)}
+  .rankbadge{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:#ffffff14;font-weight:700}
+  .rankbadge.r1{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#2a1206}
+  .champ{color:var(--crown)}
+  canvas.confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:70}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+  .statgrid .box{background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+  .statgrid .box b{display:block;font-family:var(--f-display);font-weight:400;font-size:22px}
+  .statgrid .box span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .big-score{font-family:var(--f-display);font-size:56px;text-align:center;margin:4px 0 2px;
+             background:linear-gradient(180deg,#fff,#ffcf7a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .result-head{text-align:center;font-family:var(--f-display);font-size:24px;margin-bottom:2px}
+  .target-line{text-align:center;color:var(--gold);font-size:15px;margin-top:2px}
+  .share-box{background:rgba(0,0,0,.25);border:1px dashed var(--line);border-radius:12px;padding:12px;font-size:13px;color:var(--ink);white-space:pre-wrap;line-height:1.5}
+  .err{color:var(--bad);font-size:13px;margin-top:8px}
+  .foot{color:var(--muted);font-size:11px;text-align:center;margin-top:16px;line-height:1.5}
+  a{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="app" class="screen"></div></div>
+<div id="toast" class="toast"></div>
+
+<!-- Supabase JS (used only when CONFIG keys are filled; harmless otherwise) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* ============================================================
+   Ravan Rush — private family Dussehra game
+   Backend: localStorage by default. Fill CONFIG to go live
+   cross-device on Supabase (see README / schema.sql). The rest
+   of the app does not change — only this adapter does.
+   ============================================================ */
+const CONFIG = {
+  SUPABASE_URL: "",       // e.g. https://xxxx.supabase.co
+  SUPABASE_ANON_KEY: "",  // your project's anon public key
+};
+
+/* ---------- Backend adapter (same signatures for both modes) ---------- */
+const Backend = (() => {
+  const live = CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase;
+  const sb = live ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) : null;
+
+  // ----- localStorage mode -----
+  const LS_KEY = "ravanRush.v1";
+  const readAll = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } };
+  const writeAll = (d) => { try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch {} };
+
+  async function localCreateFamily(code, name){ const d=readAll(); d[code]={name,players:{}}; writeAll(d); }
+  async function localGetFamily(code){ const d=readAll(); return d[code]||null; }
+  async function localGetLeaderboard(code){
+    const f=(readAll())[code]; if(!f) return [];
+    return Object.entries(f.players).map(([id,p])=>({id,...p}));
+  }
+  async function localSaveScore(code, player){
+    const d=readAll(); if(!d[code]) d[code]={name:code,players:{}};
+    const ex=d[code].players[player.id]||{nickname:player.nickname,best:0,bestCombo:0,bestTime:null,bestAcc:0,games:0};
+    ex.nickname=player.nickname; ex.games=(ex.games||0)+1;
+    const improved=player.score>(ex.best||0);
+    if(improved) ex.best=player.score;
+    if(player.combo>(ex.bestCombo||0)) ex.bestCombo=player.combo;
+    if(player.acc>(ex.bestAcc||0)) ex.bestAcc=player.acc;
+    if(player.time!=null && (ex.bestTime==null || player.time<ex.bestTime)) ex.bestTime=player.time;
+    d[code].players[player.id]=ex; writeAll(d);
+    return {improved, record:ex};
+  }
+
+  // ----- Supabase mode -----
+  async function sbCreateFamily(code,name){ await sb.from("families").insert({code,name}); }
+  async function sbGetFamily(code){
+    const {data}=await sb.from("families").select("code,name").eq("code",code).maybeSingle();
+    return data?{name:data.name,players:{}}:null;
+  }
+  async function sbGetLeaderboard(code){
+    const {data}=await sb.from("players").select("*").eq("family_code",code);
+    return (data||[]).map(r=>({id:r.id,nickname:r.nickname,best:r.best_score,bestCombo:r.best_combo,
+      bestTime:r.best_time,bestAcc:r.best_accuracy,games:r.games}));
+  }
+  async function sbSaveScore(code,player){
+    const {data:ex}=await sb.from("players").select("*").eq("family_code",code).eq("id",player.id).maybeSingle();
+    const improved=!ex || player.score>ex.best_score;
+    const row={
+      id:player.id, family_code:code, nickname:player.nickname,
+      best_score:Math.max(player.score, ex?ex.best_score:0),
+      best_combo:Math.max(player.combo, ex?ex.best_combo:0),
+      best_accuracy:Math.max(player.acc, ex?ex.best_accuracy:0),
+      best_time: ex && ex.best_time!=null ? Math.min(player.time??ex.best_time, ex.best_time) : (player.time??null),
+      games:(ex?ex.games:0)+1, updated_at:new Date().toISOString(),
+    };
+    await sb.from("players").upsert(row);
+    return {improved, record:{nickname:row.nickname,best:row.best_score,bestCombo:row.best_combo,
+      bestTime:row.best_time,bestAcc:row.best_accuracy,games:row.games}};
+  }
+
+  return {
+    live: !!live,
+    createFamily: live?sbCreateFamily:localCreateFamily,
+    getFamily:    live?sbGetFamily:localGetFamily,
+    getLeaderboard: live?sbGetLeaderboard:localGetLeaderboard,
+    saveScore:    live?sbSaveScore:localSaveScore,
+  };
+})();
+
+/* ---------- Small helpers ---------- */
+const $=(s,el=document)=>el.querySelector(s);
+const app=$("#app");
+const fmt=n=>Number(n||0).toLocaleString("en-IN");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2200); }
+function show(html){ app.innerHTML=html; app.classList.remove("screen"); void app.offsetWidth; app.classList.add("screen"); }
+function myId(){ let id; try{id=localStorage.getItem("ravanRush.pid");}catch{} if(!id){ id="p_"+Math.random().toString(36).slice(2,10); try{localStorage.setItem("ravanRush.pid",id);}catch{} } return id; }
+function makeCode(name){
+  const base=(name||"FAMILY").toUpperCase().replace(/[^A-Z]/g,"").slice(0,6)||"FAMILY";
+  const yr=String(new Date().getFullYear()).slice(2);
+  return base+yr;
+}
+function familyLink(code){ const u=new URL(location.href); u.hash=code; return u.href; }
+
+/* ---------- App state ---------- */
+const State={ code:null, familyName:null, nickname:null };
+
+/* Ravan head SVG (10-headed demon king motif: dark face, gold crown) */
+function ravanHead(){
+  return `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <defs><radialGradient id="g" cx="50%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#6b2a4a"/><stop offset="100%" stop-color="#36132a"/></radialGradient></defs>
+    <path d="M12 16 L18 7 L24 15 L32 5 L40 15 L46 7 L52 16 L50 20 L14 20 Z" fill="#ffd76a"/>
+    <circle cx="32" cy="38" r="22" fill="url(#g)" stroke="#1c0a16" stroke-width="2"/>
+    <circle cx="24" cy="35" r="4.4" fill="#ffd76a"/><circle cx="40" cy="35" r="4.4" fill="#ffd76a"/>
+    <circle cx="24" cy="35.5" r="2" fill="#2a0010"/><circle cx="40" cy="35.5" r="2" fill="#2a0010"/>
+    <path d="M18 30 Q24 27 29 31" stroke="#ffd76a" stroke-width="2" fill="none"/>
+    <path d="M35 31 Q40 27 46 30" stroke="#ffd76a" stroke-width="2" fill="none"/>
+    <path d="M27 44 Q32 41 37 44" stroke="#ffd76a" stroke-width="2.4" fill="none"/>
+    <path d="M30 47 L32 50 L34 47" fill="#1c0a16"/>
+    <path d="M28 25 Q32 22 36 25" stroke="#1c0a16" stroke-width="1.5" fill="none"/>
+  </svg>`;
+}
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+function homeScreen(){
+  show(`
+    <div class="brand"><div class="logo">🏹</div>
+      <h1>Ravan Rush</h1>
+      <p class="tag">A private family Dussehra challenge</p>
+    </div>
+    <div class="card">
+      <button class="btn flame" id="play">▶ Play Now</button>
+      <button class="btn secondary" id="create">Create Family Challenge</button>
+      ${State.code?`<button class="btn secondary" id="board">View ${esc(State.familyName||State.code)} leaderboard</button>`:""}
+    </div>
+    <p class="foot">${Backend.live?"Live family leaderboard — synced across everyone's phones.":"Running in single-device mode. Add your family's Supabase keys to sync everyone's phones (see README)."}</p>
+  `);
+  $("#play").onclick=()=> State.code?askNickname():createScreen();
+  $("#create").onclick=createScreen;
+  if(State.code) $("#board").onclick=()=>leaderboardScreen();
+}
+
+function createScreen(){
+  show(`
+    <button class="back" id="bk">← Back</button>
+    <div class="card">
+      <h2>Create your family challenge</h2>
+      <label for="fname">Family or group name</label>
+      <input id="fname" placeholder="e.g. Laddha Family" maxlength="28" autocomplete="off" />
+      <div id="err" class="err" hidden></div>
+      <button class="btn" id="go" style="margin-top:14px">Create challenge</button>
+      <p class="muted" style="font-size:12px;margin:12px 0 0">We'll make a family code and a private link you can send on WhatsApp. No email, no password — anyone with the link just enters a nickname and plays.</p>
+    </div>
+  `);
+  $("#bk").onclick=homeScreen;
+  const run=async()=>{
+    const name=$("#fname").value.trim();
+    if(name.length<2){ const e=$("#err"); e.textContent="Please enter a family name."; e.hidden=false; return; }
+    const code=makeCode(name);
+    try{ await Backend.createFamily(code,name); }catch(err){ /* may already exist — fine */ }
+    State.code=code; State.familyName=name;
+    sharePanel(code,name,true);
+  };
+  $("#go").onclick=run;
+  $("#fname").addEventListener("keydown",e=>{ if(e.key==="Enter") run(); });
+  $("#fname").focus();
+}
+
+function sharePanel(code,name,isNew){
+  const link=familyLink(code);
+  show(`
+    <div class="brand"><div class="logo">🪔</div><h1>${esc(name)}</h1>
+      <p class="tag">${isNew?"Your family challenge is ready":"Invite your family"}</p></div>
+    <div class="card center">
+      <p class="muted" style="margin:0 0 6px">Family code</p>
+      <div class="code">${esc(code)}</div>
+    </div>
+    <div class="card">
+      <label>Private family link</label>
+      <input id="lnk" readonly value="${esc(link)}" />
+      <button class="btn" id="copy" style="margin-top:10px">📋 Copy link</button>
+      <button class="btn secondary" id="wa">Share message for WhatsApp</button>
+      <div id="sharemsg" hidden></div>
+    </div>
+    <div class="card"><button class="btn flame" id="play">▶ Play first game</button>
+      <button class="btn secondary" id="board">View leaderboard</button></div>
+  `);
+  $("#lnk").onclick=()=>$("#lnk").select();
+  $("#copy").onclick=()=>copyText(link,"Link copied");
+  $("#wa").onclick=()=>{
+    const msg=`Join our ${name} Ravan Rush Dussehra challenge! 🏹🪔\nTap the link, pick a nickname and beat our scores:\n${link}`;
+    const box=$("#sharemsg"); box.hidden=false;
+    box.innerHTML=`<div class="share-box" style="margin-top:10px">${esc(msg)}</div>
+      <button class="btn secondary" id="copymsg" style="margin-top:8px">Copy message</button>`;
+    $("#copymsg").onclick=()=>copyText(msg,"Message copied — paste in WhatsApp");
+  };
+  $("#play").onclick=askNickname;
+  $("#board").onclick=()=>leaderboardScreen();
+}
+
+function askNickname(){
+  show(`
+    <button class="back" id="bk">← Back</button>
+    <div class="brand"><div class="logo">🏹</div><h1>${esc(State.familyName||"Ravan Rush")}</h1>
+      <p class="tag">Enter your name to join the challenge</p></div>
+    <div class="card">
+      <label for="nick">First name / nickname</label>
+      <input id="nick" placeholder="e.g. Ajay" maxlength="18" autocomplete="off" value="${esc(State.nickname||"")}" />
+      <div id="err" class="err" hidden></div>
+      <button class="btn flame" id="go" style="margin-top:14px">Start playing</button>
+    </div>
+  `);
+  $("#bk").onclick=homeScreen;
+  const run=()=>{
+    const n=$("#nick").value.trim();
+    if(n.length<1){ const e=$("#err"); e.textContent="Please enter a nickname."; e.hidden=false; return; }
+    State.nickname=n;
+    startGame();
+  };
+  $("#go").onclick=run;
+  $("#nick").addEventListener("keydown",e=>{ if(e.key==="Enter") run(); });
+  $("#nick").focus();
+}
+
+/* ============================================================
+   GAME ENGINE  — strike Ravan's heads; destroy 21 to win
+   ============================================================ */
+const GOAL=21, TIME_CAP=60; // destroy 21 heads, or 60s cap
+function startGame(){
+  show(`
+    <div class="hud">
+      <div class="stat"><b id="h-score">0</b><span>Score</span></div>
+      <div class="stat"><b id="h-combo" class="combo">x1</b><span>Combo</span></div>
+      <div class="stat"><b id="h-hits">0/${GOAL}</b><span>Heads</span></div>
+      <div class="stat"><b id="h-time">0.0</b><span>Time</span></div>
+    </div>
+    <div class="arena" id="arena">
+      <div class="ground"></div>
+      <div class="progress"><i id="prog"></i></div>
+      <div class="countin" id="countin">3</div>
+    </div>
+    <p class="foot">Tap Ravan's heads as they rise. Keep the combo alive — missing resets it.</p>
+  `);
+  const arena=$("#arena");
+  const g={score:0,combo:0,bestCombo:0,hits:0,taps:0,start:0,running:false,heads:new Set(),spawnT:null,raf:null};
+
+  // count-in 3-2-1
+  let c=3; const ci=$("#countin");
+  const tick=()=>{ if(c>0){ ci.textContent=c; c--; setTimeout(tick,650);} else { ci.textContent="GO"; setTimeout(()=>{ci.remove(); begin();},450);} };
+  tick();
+
+  function begin(){
+    g.running=true; g.start=performance.now();
+    loop(); scheduleSpawn();
+    arena.addEventListener("pointerdown", onTap);
+  }
+  function onTap(e){
+    if(!g.running) return;
+    if(e.target.closest(".head")) return; // handled by head
+    g.taps++; g.combo=0; updateHUD(); // empty tap breaks combo
+  }
+  function spawnLifetime(){ const t=Math.max(620, 1500 - g.hits*42); return t; }
+  function spawnDelay(){ return Math.max(260, 820 - g.hits*22); }
+  function scheduleSpawn(){
+    if(!g.running) return;
+    spawnHead();
+    g.spawnT=setTimeout(scheduleSpawn, spawnDelay());
+  }
+  function spawnHead(){
+    const el=document.createElement("div"); el.className="head"; el.innerHTML=ravanHead();
+    const pad=14, w=arena.clientWidth, h=arena.clientHeight*0.78;
+    const x=pad+Math.random()*(w-2*pad-74)+37;
+    const y=pad+Math.random()*(h-2*pad-74)+37;
+    el.style.left=x+"px"; el.style.top=y+"px";
+    const born=performance.now(), life=spawnLifetime();
+    const rec={el,born,life,x,y,dead:false};
+    g.heads.add(rec);
+    arena.appendChild(el);
+    requestAnimationFrame(()=>el.classList.add("in"));
+    el.addEventListener("pointerdown",ev=>{ ev.stopPropagation(); hit(rec); });
+    rec.timer=setTimeout(()=>miss(rec), life);
+  }
+  function hit(rec){
+    if(rec.dead) return; rec.dead=true; clearTimeout(rec.timer); g.heads.delete(rec);
+    g.taps++; g.hits++; g.combo++; if(g.combo>g.bestCombo) g.bestCombo=g.combo;
+    const speed=1 - Math.min(0.85,(performance.now()-rec.born)/rec.life); // faster tap = more
+    const mult=1+(g.combo-1)*0.15;
+    const pts=Math.round((100+Math.round(speed*120))*mult);
+    g.score+=pts;
+    flash(rec.x,rec.y,"+"+pts); burst(rec.x,rec.y,"💥");
+    rec.el.classList.remove("in"); setTimeout(()=>rec.el.remove(),120);
+    updateHUD();
+    if(g.hits>=GOAL) finish();
+  }
+  function miss(rec){
+    if(rec.dead) return; rec.dead=true; g.heads.delete(rec);
+    g.combo=0; updateHUD();
+    rec.el.classList.remove("in"); setTimeout(()=>rec.el.remove(),120);
+  }
+  function flash(x,y,txt){ const f=document.createElement("div");f.className="float";f.textContent=txt;f.style.left=x+"px";f.style.top=y+"px";arena.appendChild(f);setTimeout(()=>f.remove(),700);}
+  function burst(x,y,txt){ const b=document.createElement("div");b.className="burst";b.textContent=txt;b.style.left=x+"px";b.style.top=y+"px";arena.appendChild(b);setTimeout(()=>b.remove(),500);}
+  function updateHUD(){
+    $("#h-score").textContent=fmt(g.score);
+    $("#h-combo").textContent="x"+(1+(g.combo?g.combo-1:0)*1); $("#h-combo").textContent="x"+Math.max(1,g.combo);
+    $("#h-hits").textContent=g.hits+"/"+GOAL;
+    $("#prog").style.width=(g.hits/GOAL*100)+"%";
+  }
+  function loop(){
+    if(!g.running) return;
+    const t=(performance.now()-g.start)/1000;
+    $("#h-time").textContent=t.toFixed(1);
+    if(t>=TIME_CAP){ finish(); return; }
+    g.raf=requestAnimationFrame(loop);
+  }
+  function finish(){
+    if(!g.running) return; g.running=false;
+    clearTimeout(g.spawnT); cancelAnimationFrame(g.raf);
+    arena.removeEventListener("pointerdown",onTap);
+    g.heads.forEach(r=>{clearTimeout(r.timer);r.el.remove();}); g.heads.clear();
+    const time=(performance.now()-g.start)/1000;
+    const acc=g.taps?Math.round(g.hits/g.taps*100):0;
+    const completed=g.hits>=GOAL;
+    resultScreen({score:g.score,combo:g.bestCombo,acc,time:completed?+time.toFixed(1):null,completed,hits:g.hits});
+  }
+}
+
+/* ============================================================
+   RESULT  — personal best, rank change, champion, share
+   ============================================================ */
+async function resultScreen(run){
+  show(`<div class="card center"><p class="muted">Saving your score…</p></div>`);
+  const id=myId();
+  let before=[]; try{ before=await Backend.getLeaderboard(State.code);}catch{}
+  const prevRank=rankOf(before,id);
+  const prevBest=(before.find(p=>p.id===id)||{}).best||0;
+
+  let save={improved:run.score>prevBest, record:null};
+  try{ save=await Backend.saveScore(State.code,{id,nickname:State.nickname,score:run.score,combo:run.combo,acc:run.acc,time:run.time}); }catch(e){}
+
+  let board=[]; try{ board=await Backend.getLeaderboard(State.code);}catch{}
+  board=sortBoard(board);
+  const myRank=rankOf(board,id);
+  const me=board.find(p=>p.id===id)||{best:Math.max(run.score,prevBest),games:1,bestCombo:run.combo,bestTime:run.time,bestAcc:run.acc};
+  const leader=board[0];
+  const isChamp=leader && leader.id===id;
+  const movedUp = prevRank!=null && myRank!=null && myRank<prevRank;
+
+  // headline
+  let head, sub="";
+  if(save.improved && run.score>prevBest && prevBest>0){
+    head=`🎉 New Personal Best!`;
+    sub=`${fmt(prevBest)} → ${fmt(run.score)}`;
+  } else if(save.improved){
+    head=`Nice first run!`;
+  } else {
+    head=`Good game!`;
+    sub=`Your best stays ${fmt(me.best)}`;
+  }
+
+  // target / rank line
+  let target="";
+  if(isChamp){ target=`👑 You're the ${esc(State.familyName||"family")} Champion!`; }
+  else if(leader){
+    const gap=leader.best-me.best;
+    target = movedUp
+      ? `You moved up to #${myRank} — ${gap>0?`${fmt(gap)} behind ${esc(leader.nickname)}`:"tied for the lead"}`
+      : `You're #${myRank} — ${gap>0?`${fmt(gap)} points to catch ${esc(leader.nickname)}`:"in the lead"}`;
+  }
+
+  show(`
+    <div class="result-head">${head}</div>
+    ${sub?`<p class="center" style="margin:0 0 6px;color:var(--gold);font-size:17px">${sub}</p>`:""}
+    <div class="big-score">${fmt(run.score)}</div>
+    <p class="target-line">${target}</p>
+    <div class="card">
+      <div class="statgrid">
+        <div class="box"><b>#${myRank||"-"}</b><span>Family rank</span></div>
+        <div class="box"><b>${fmt(me.best)}</b><span>Your best</span></div>
+        <div class="box"><b>x${run.combo||0}</b><span>Best combo</span></div>
+        <div class="box"><b>${run.time!=null?run.time+"s":"—"}</b><span>${run.completed?"Finish time":"Didn't finish"}</span></div>
+        <div class="box"><b>${run.acc}%</b><span>Accuracy</span></div>
+        <div class="box"><b>${me.games||1}</b><span>Games played</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <button class="btn flame" id="again">↻ Play again</button>
+      <button class="btn secondary" id="board">Family leaderboard</button>
+      <button class="btn secondary" id="share">Share my result</button>
+      <div id="sharemsg" hidden></div>
+    </div>
+  `);
+  if(isChamp) confetti();
+  $("#again").onclick=startGame;
+  $("#board").onclick=()=>leaderboardScreen();
+  $("#share").onclick=()=>{
+    const gap = leader && !isChamp ? leader.best-me.best : 0;
+    const msg = isChamp
+      ? `I'm the ${State.familyName} Ravan Rush Champion with ${fmt(me.best)}! 👑🏹 Think you can beat me?\n${familyLink(State.code)}`
+      : `I just scored ${fmt(run.score)} in our ${State.familyName} Ravan Rush. I'm #${myRank}${gap>0?`, only ${fmt(gap)} away from #1`:""}. Can you beat me? 🏹\n${familyLink(State.code)}`;
+    const box=$("#sharemsg"); box.hidden=false;
+    box.innerHTML=`<div class="share-box" style="margin-top:10px">${esc(msg)}</div>
+      <button class="btn secondary" id="cp" style="margin-top:8px">Copy to share</button>`;
+    $("#cp").onclick=()=>copyText(msg,"Copied — paste in WhatsApp");
+  };
+}
+
+function leaderboardScreen(){
+  show(`<div class="card center"><p class="muted">Loading leaderboard…</p></div>`);
+  (async()=>{
+    let board=[]; try{ board=await Backend.getLeaderboard(State.code);}catch{}
+    board=sortBoard(board);
+    const id=myId();
+    const rows = board.length? board.map((p,i)=>{
+      const r=i+1;
+      return `<tr class="${p.id===id?"me":""}">
+        <td><span class="rankbadge ${r===1?"r1":""}">${r}</span></td>
+        <td>${r===1?'<span class="champ">👑 </span>':""}${esc(p.nickname||"Player")}${p.id===id?' <span class="muted">(you)</span>':""}</td>
+        <td class="num">${fmt(p.best)}</td>
+        <td class="num">${p.games||0}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="4" class="center muted" style="padding:22px">No scores yet. Be the first to play!</td></tr>`;
+    show(`
+      <button class="back" id="bk">← Back</button>
+      <div class="brand"><div class="logo">🏆</div><h1>${esc(State.familyName||State.code)}</h1>
+        <p class="tag">Family Challenge Leaderboard</p></div>
+      <div class="card" style="padding:8px 10px">
+        <table><thead><tr><th>Rank</th><th>Player</th><th class="num">Best</th><th class="num">Games</th></tr></thead>
+        <tbody>${rows}</tbody></table>
+      </div>
+      <div class="card">
+        <button class="btn flame" id="play">▶ ${State.nickname?"Play again":"Join & play"}</button>
+        <button class="btn secondary" id="inv">Invite more family</button>
+      </div>
+      ${Backend.live?"":'<p class="foot">Single-device mode: this leaderboard lives on this phone only. Connect Supabase to sync the whole family.</p>'}
+    `);
+    $("#bk").onclick=homeScreen;
+    $("#play").onclick=()=> State.nickname?startGame():askNickname();
+    $("#inv").onclick=()=>sharePanel(State.code,State.familyName||State.code,false);
+  })();
+}
+
+/* ---------- ranking helpers (tie-break: accuracy, then faster time) ---------- */
+function sortBoard(b){
+  return [...b].sort((x,y)=>
+    (y.best-x.best) ||
+    ((y.bestAcc||0)-(x.bestAcc||0)) ||
+    ((x.bestTime??1e9)-(y.bestTime??1e9))
+  );
+}
+function rankOf(b,id){ const s=sortBoard(b); const i=s.findIndex(p=>p.id===id); return i<0?null:i+1; }
+
+/* ---------- clipboard (artifact/browser safe) ---------- */
+async function copyText(text,okMsg){
+  try{ await navigator.clipboard.writeText(text); toast(okMsg); return; }catch{}
+  try{ const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+       document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast(okMsg); }
+  catch{ toast("Copy failed — select the text manually"); }
+}
+
+/* ---------- confetti (champion) ---------- */
+function confetti(){
+  const c=document.createElement("canvas"); c.className="confetti"; document.body.appendChild(c);
+  const ctx=c.getContext("2d"); const dpr=Math.min(2,devicePixelRatio||1);
+  const resize=()=>{c.width=innerWidth*dpr;c.height=innerHeight*dpr;}; resize();
+  const cols=["#ffc24b","#ff7a1a","#ff4d2e","#5ad48b","#ffd76a","#fff"];
+  const N=140, P=Array.from({length:N},()=>({x:Math.random()*c.width,y:-Math.random()*c.height*0.3,
+    r:(4+Math.random()*5)*dpr,vx:(Math.random()-.5)*2*dpr,vy:(2+Math.random()*3)*dpr,
+    col:cols[(Math.random()*cols.length)|0],rot:Math.random()*6,vr:(Math.random()-.5)*0.3}));
+  let t0=performance.now();
+  (function run(now){
+    const el=now-t0; ctx.clearRect(0,0,c.width,c.height);
+    P.forEach(p=>{ p.x+=p.vx;p.y+=p.vy;p.vy+=0.03*dpr;p.rot+=p.vr;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.col;
+      ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r*0.6);ctx.restore(); });
+    if(el<3000) requestAnimationFrame(run); else c.remove();
+  })(t0);
+  addEventListener("resize",resize,{once:true});
+}
+
+/* ---------- boot: a family link opens straight into that family ---------- */
+(async function boot(){
+  const hash=(location.hash||"").replace(/^#/,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if(hash){
+    try{ const fam=await Backend.getFamily(hash); if(fam){ State.code=hash; State.familyName=fam.name||hash; } }
+    catch{}
+    if(!State.code){ State.code=hash; State.familyName=hash; } // still let them in; family will be created on first save
+  }
+  homeScreen();
+})();
+</script>
+</body>
+</html>
